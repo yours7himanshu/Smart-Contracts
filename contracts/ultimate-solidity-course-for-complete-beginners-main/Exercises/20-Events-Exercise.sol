@@ -7,6 +7,7 @@ contract EventExample {
     // 👉 user as address type
     // 👉 username as string type
     // CODE HERE 👇
+    event NewUserRegistered(address indexed  user, string username);
     
     struct User {
         string username;
@@ -22,6 +23,7 @@ contract EventExample {
         
         // 2️⃣ Emit the event with msg.sender and username as the inputs
         // CODE HERE 👇
+        emit NewUserRegistered(msg.sender,_username);
 
     }
 }
