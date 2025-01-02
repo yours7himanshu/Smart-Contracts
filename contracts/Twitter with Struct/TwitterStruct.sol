@@ -1,73 +1,99 @@
-// "SPDX-License-Identifier" : Apache-2.0
+// SPDX-License-Identifier: Apache-2.0
+import "@openzeppelin/contracts/access/Ownable.sol";
 pragma solidity ^0.8.26;
 
 contract Twitter {
+    // Maximum length for a tweet
+    uint16 public MAX_TWEET_LENGTH = 280;
 
-    
-
-    uint16 public MAX_TWEET_LENGTH=280;
-
-
-
-    // how to define it using struct in Solidity
-    struct Tweet{
+    // Struct to represent a tweet
+    struct Tweet {
+        uint256 id; // Added ID for each tweet to make them unique
         address author;
         string content;
         uint256 timestamp;
         uint256 likes;
     }
 
-
-
-    // we are using a mapping between the address and the string and then actually making it to the public variable
-    // What is a mapping???
-    // Answer : Mapping is nothing but a key value pair just like we have objects in javascript here address is the key and string is the value
+    // Mapping from address to an array of tweets
     mapping(address => Tweet[]) public tweets;
 
-    address public owner;
+    
 
+    // Events for better tracking of actions
+    event TweetCreated(address indexed author, uint256 indexed tweetId, string content);
+    event TweetLiked(address indexed author, uint256 indexed tweetId, address indexed liker);
+    event TweetUnliked(address indexed author, uint256 indexed tweetId, address indexed unliker);
 
-// created a owner variable which is a sender if msg.sender is a owner than we have to run the function otherwise not this is the main key
-   constructor (){
-     owner = msg.sender;
-   }
-
-
-// as we know modifiers are same as what i do as role based authentication using javascript here also we are more or less doing the same
-   modifier onlyOwner(){
-    require(msg.sender == owner, "You are not the owner");
-    _;
-   }
-
-    // for changing max tweet length using this 
-    // also we had used onlyOwner modifier for checking the logic
-    function changeTweetLength(uint16 newTweetLength) public onlyOwner{
-        MAX_TWEET_LENGTH =  newTweetLength;
+ address public owner;
+    // Constructor to set the owner of the contract
+    constructor() {
+        owner = msg.sender;
     }
 
-// this is how we declare a function in solidity
+    // Modifier to restrict function access to the contract owner
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only the owner can call this function");
+        _;
+    }
+
+    // Function to change the maximum tweet length
+    function changeTweetLength(uint16 newTweetLength) public onlyOwner() {
+        MAX_TWEET_LENGTH = newTweetLength;
+    }
+
+// function for getting total Likes
+function getTotalLikes(address _author) external view returns(uint)
+{
+    // by default the variables which is declared in solidity is set to 0 u don't have to set it to zero manually
+    uint totalLikes;
+    for(uint i = 0;i<tweets[_author].length;i++)
+    {
+        totalLikes += tweets[_author][i].likes;
+    }
+    return totalLikes;
+
+}
+
+    // Function to create a new tweet
     function createTweet(string memory _tweet) public {
+        require(bytes(_tweet).length <= MAX_TWEET_LENGTH, "Tweet is too long");
 
-     
-    // Important concepts in Solidiy ( Require ) we use " require " keyword as if else is something is true return this or exit simple as that just a conditional statement nothing else
-    // We are using bytes function to convert the string into bytes and then comparing it lol
-     require(bytes(_tweet).length <= MAX_TWEET_LENGTH, "Your Tweet is too long bro");
-
+        uint256 tweetId = tweets[msg.sender].length;  // Assign unique ID based on the array length
         Tweet memory newTweet = Tweet({
+            id: tweetId,
             author: msg.sender,
             content: _tweet,
             timestamp: block.timestamp,
-            likes:0
+            likes: 0
         });
         tweets[msg.sender].push(newTweet);
+        emit TweetCreated(msg.sender, tweetId, _tweet);
     }
 
-// this is the function for getting the information we had used the keyword view in this function because this function does not doing any modification related task inside it
-    function getTweet(uint _i) public view returns(Tweet memory){
-       return tweets[msg.sender] [_i] ;
+    // Function to get a specific tweet by index
+    function getTweet(uint256 _i) public view returns (Tweet memory) {
+        require(_i < tweets[msg.sender].length, "Tweet index out of bounds");
+        return tweets[msg.sender][_i];
     }
 
-    function getAllTweets(address _owner) public view returns (Tweet[] memory){
+    // Function to get all tweets for a user
+    function getAllTweets(address _owner) public view returns (Tweet[] memory) {
         return tweets[_owner];
+    }
+
+    // Function to like a tweet
+    function likeTweet(address _author, uint256 _tweetId) public {
+        require(_tweetId < tweets[_author].length, "Tweet ID does not exist");
+        tweets[_author][_tweetId].likes += 1;
+        emit TweetLiked(_author, _tweetId, msg.sender);
+    }
+
+    // Function to unlike a tweet
+    function unlikeTweet(address _author, uint256 _tweetId) public {
+        require(_tweetId < tweets[_author].length, "Tweet ID does not exist");
+        require(tweets[_author][_tweetId].likes > 0, "Cannot unlike if no likes");
+        tweets[_author][_tweetId].likes -= 1;
+        emit TweetUnliked(_author, _tweetId, msg.sender);
     }
 }
